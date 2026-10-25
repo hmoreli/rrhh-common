@@ -46,11 +46,19 @@ Un recurso CRUD completo:
 ```python
 from rrhh_common.crud import router_crud
 
-app.include_router(router_crud(
-    modelo=Hijo, crear=HijoCrear, parche=HijoParche, salida=HijoSalida,
-    prefijo="/hijos", etiqueta="Gestión de Hijos", nombre="Hijo",
-    sesion=obtener_sesion, filtros={"funcionario_id": int},
-))
+app.include_router(
+    router_crud(
+        modelo=Hijo,
+        crear=HijoCrear,
+        parche=HijoParche,
+        salida=HijoSalida,
+        prefijo="/hijos",
+        etiqueta="Gestión de Hijos",
+        nombre="Hijo",
+        sesion=obtener_sesion,
+        filtros={"funcionario_id": int},
+    )
+)
 ```
 
 Por defecto leen `rrhh-operador`, `nomina-liquidador` y `consulta`, y escribe `rrhh-operador` (`rrhh-admin` siempre puede).
