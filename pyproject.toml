@@ -16,7 +16,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6"]
+db = ["sqlalchemy>=2.0"]
+dev = ["pytest>=8", "ruff>=0.6", "sqlalchemy>=2.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rrhh_common"]

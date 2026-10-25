@@ -7,11 +7,12 @@ Librería compartida por los microservicios de RRHH (FastAPI). Resuelve lo que t
 - **Paginación**: `?limit=&offset=` y la respuesta `Pagina[T]` (`items`, `total`, `limit`, `offset`).
 - **Errores**: un formato único `{codigo, mensaje, detalles}` para 4xx y validaciones.
 - **Llamadas entre servicios**: `ClienteServicio` con token de *client credentials*.
+- **CRUD genérico** (`rrhh_common.crud`, extra `[db]`): `router_crud(...)` arma GET lista, POST y GET/PATCH/DELETE por id sobre un modelo SQLAlchemy, con paginación, filtros por igualdad, 404/409 y roles de lectura y escritura.
 
 ## Instalar en un microservicio
 
 ```bash
-pip install "rrhh-common @ git+https://github.com/hmoreli/rrhh-common@v0.1.0"
+pip install "rrhh-common[db] @ git+https://github.com/hmoreli/rrhh-common@main"
 ```
 
 ## Uso
@@ -39,6 +40,20 @@ def listar(
     usuario: Usuario = Depends(requiere_roles("rrhh-operador", "consulta")),
 ): ...
 ```
+
+Un recurso CRUD completo:
+
+```python
+from rrhh_common.crud import router_crud
+
+app.include_router(router_crud(
+    modelo=Hijo, crear=HijoCrear, parche=HijoParche, salida=HijoSalida,
+    prefijo="/hijos", etiqueta="Gestión de Hijos", nombre="Hijo",
+    sesion=obtener_sesion, filtros={"funcionario_id": int},
+))
+```
+
+Por defecto leen `rrhh-operador`, `nomina-liquidador` y `consulta`, y escribe `rrhh-operador` (`rrhh-admin` siempre puede).
 
 Variables de entorno:
 

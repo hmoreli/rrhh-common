@@ -1,7 +1,8 @@
 import time
 
-import jwt
 import pytest
+from conftest import AUDIENCIA, CLAVE, ISSUER
+from conftest import emitir_token as token
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
@@ -17,25 +18,7 @@ from rrhh_common import (
     usuario_actual,
 )
 
-ISSUER = "http://keycloak:8080/realms/rrhh"
-AUDIENCIA = "rrhh-api"
-CLAVE = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 OTRA_CLAVE = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-
-
-def token(roles=(), clave=CLAVE, **cambios) -> str:
-    ahora = int(time.time())
-    claims = {
-        "iss": ISSUER,
-        "aud": AUDIENCIA,
-        "sub": "u-1",
-        "preferred_username": "hector",
-        "iat": ahora,
-        "exp": ahora + 300,
-        "realm_access": {"roles": list(roles)},
-        **cambios,
-    }
-    return jwt.encode(claims, clave, algorithm="RS256")
 
 
 @pytest.fixture
