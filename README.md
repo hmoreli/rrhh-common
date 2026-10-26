@@ -89,6 +89,7 @@ Variables de entorno:
 | `KEYCLOAK_AUDIENCE` | `rrhh-api` | No (por defecto `rrhh-api`) |
 | `SERVICIO_CLIENT_ID` | `ms-formacion` | No: sin él no se validan ids de otros servicios |
 | `SERVICIO_CLIENT_SECRET` | `ms-formacion-dev` | Si hay `SERVICIO_CLIENT_ID` |
+| `KEYCLOAK_TOKEN_URL` | `http://keycloak:8080/realms/rrhh/protocol/openid-connect/token` | No (se deriva de `KEYCLOAK_JWKS_URL`) |
 | `SERVICIOS_URL` | `http://ms-{servicio}:8000` | No (ese es el valor por defecto) |
 
 Dentro de Docker, `KEYCLOAK_JWKS_URL` apunta a `keycloak:8080` mientras el issuer sigue siendo `localhost:8080`, que es el que figura en el token.

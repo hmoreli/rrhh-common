@@ -76,8 +76,11 @@ class ValidadorReferencias:
         if not client_id:
             log.warning("Sin SERVICIO_CLIENT_ID: no se validan ids de otros servicios")
             return None
+        # Dentro de Docker el issuer (localhost:8080) no es alcanzable: el token se pide
+        # al mismo host que KEYCLOAK_JWKS_URL (keycloak:8080).
         issuer = os.environ["KEYCLOAK_ISSUER"].rstrip("/")
-        token_url = os.environ.get("KEYCLOAK_TOKEN_URL", f"{issuer}/protocol/openid-connect/token")
+        jwks_url = os.environ.get("KEYCLOAK_JWKS_URL", f"{issuer}/protocol/openid-connect/certs")
+        token_url = os.environ.get("KEYCLOAK_TOKEN_URL", jwks_url.removesuffix("/certs") + "/token")
         plantilla = os.environ.get("SERVICIOS_URL", "http://ms-{servicio}:8000")
         return cls(
             token_url=token_url,

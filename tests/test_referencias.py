@@ -75,6 +75,20 @@ def test_verificar_ignora_campos_vacios():
     assert servicios.consultas == 0
 
 
+def test_desde_entorno(monkeypatch):
+    monkeypatch.delenv("SERVICIO_CLIENT_ID", raising=False)
+    assert ValidadorReferencias.desde_entorno() is None
+    monkeypatch.setenv("SERVICIO_CLIENT_ID", "ms-formacion")
+    monkeypatch.setenv("SERVICIO_CLIENT_SECRET", "secreto")
+    monkeypatch.setenv("KEYCLOAK_ISSUER", "http://localhost:8080/realms/rrhh")
+    monkeypatch.setenv(
+        "KEYCLOAK_JWKS_URL", "http://keycloak:8080/realms/rrhh/protocol/openid-connect/certs"
+    )
+    v = ValidadorReferencias.desde_entorno()
+    assert v._token_url == "http://keycloak:8080/realms/rrhh/protocol/openid-connect/token"
+    assert v._url_servicio("funcionarios") == "http://ms-funcionarios:8000"
+
+
 def test_servicio_caido_da_503():
     v = validador(Servicios(caido=True))
     with pytest.raises(HTTPException) as exc:
