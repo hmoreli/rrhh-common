@@ -7,6 +7,7 @@ Librería compartida por los microservicios de RRHH (FastAPI). Resuelve lo que t
 - **Paginación**: `?limit=&offset=` y la respuesta `Pagina[T]` (`items`, `total`, `limit`, `offset`).
 - **Errores**: un formato único `{codigo, mensaje, detalles}` para 4xx y validaciones.
 - **Llamadas entre servicios**: `ClienteServicio` con token de *client credentials*.
+- **Ids de otros servicios**: entre schemas no hay FK física, así que `Referencia` + `ValidadorReferencias` preguntan al servicio dueño si el id existe antes de guardar (422 si no existe, 503 si el servicio no responde).
 - **CRUD genérico** (`rrhh_common.crud`, extra `[db]`): `router_crud(...)` arma GET lista, POST y GET/PATCH/DELETE por id sobre un modelo SQLAlchemy, con paginación, filtros por igualdad, búsqueda de texto con `?q=` (parámetro `busqueda`), 404/409 y roles de lectura y escritura.
 
 ## Instalar en un microservicio
@@ -61,7 +62,23 @@ app.include_router(
 )
 ```
 
-Por defecto leen `rrhh-operador`, `nomina-liquidador` y `consulta`, y escribe `rrhh-operador` (`rrhh-admin` siempre puede).
+Por defecto leen `rrhh-operador`, `nomina-liquidador`, `consulta` y `servicio-interno` (los otros servicios), y escribe `rrhh-operador` (`rrhh-admin` siempre puede).
+
+Validar ids de otros servicios:
+
+```python
+from rrhh_common import Referencia, ValidadorReferencias, verificar_referencias
+
+FUNCIONARIO = Referencia("funcionario_id", "funcionarios", "/funcionarios/{id}", "funcionario")
+
+app.state.referencias = ValidadorReferencias.desde_entorno()  # None si no hay client
+router_crud(..., referencias=[FUNCIONARIO])  # valida en POST y PATCH
+
+
+@router.post("/permisos")
+def crear(datos: PermisoCrear, request: Request):
+    verificar_referencias(request, [FUNCIONARIO], datos.model_dump())
+```
 
 Variables de entorno:
 
@@ -70,6 +87,9 @@ Variables de entorno:
 | `KEYCLOAK_ISSUER` | `http://localhost:8080/realms/rrhh` | Sí |
 | `KEYCLOAK_JWKS_URL` | `http://keycloak:8080/realms/rrhh/protocol/openid-connect/certs` | No (se deriva del issuer) |
 | `KEYCLOAK_AUDIENCE` | `rrhh-api` | No (por defecto `rrhh-api`) |
+| `SERVICIO_CLIENT_ID` | `ms-formacion` | No: sin él no se validan ids de otros servicios |
+| `SERVICIO_CLIENT_SECRET` | `ms-formacion-dev` | Si hay `SERVICIO_CLIENT_ID` |
+| `SERVICIOS_URL` | `http://ms-{servicio}:8000` | No (ese es el valor por defecto) |
 
 Dentro de Docker, `KEYCLOAK_JWKS_URL` apunta a `keycloak:8080` mientras el issuer sigue siendo `localhost:8080`, que es el que figura en el token.
 

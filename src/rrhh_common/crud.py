@@ -1,13 +1,14 @@
 """Router CRUD genérico para recursos simples sobre SQLAlchemy.
 
 Cubre el patrón de los contratos (GET lista, POST, GET/PATCH/DELETE por id),
-con paginación limit/offset, filtros por igualdad, búsqueda de texto (?q=)
-y control de roles.
+con paginación limit/offset, filtros por igualdad, búsqueda de texto (?q=),
+validación de ids de otros servicios y control de roles.
 
     router = router_crud(
         modelo=Hijo, crear=HijoCrear, parche=HijoParche, salida=HijoSalida,
         prefijo="/hijos", etiqueta="Gestión de Hijos", sesion=obtener_sesion,
         filtros={"funcionario_id": int}, busqueda=("nombre",),
+        referencias=[FUNCIONARIO],
     )
 """
 
@@ -15,7 +16,7 @@ import inspect
 from collections.abc import Callable, Iterable, Iterator
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
@@ -23,8 +24,10 @@ from sqlalchemy.orm import Session
 
 from rrhh_common.auth import Usuario, requiere_roles
 from rrhh_common.paginacion import Paginacion
+from rrhh_common.referencias import Referencia, verificar_referencias
 
-ROLES_LECTURA = ("rrhh-operador", "nomina-liquidador", "consulta")
+# servicio-interno: los otros servicios, que consultan si un id existe.
+ROLES_LECTURA = ("rrhh-operador", "nomina-liquidador", "consulta", "servicio-interno")
 ROLES_ESCRITURA = ("rrhh-operador",)
 
 TODAS = frozenset({"listar", "crear", "obtener", "actualizar", "eliminar"})
@@ -84,6 +87,7 @@ def router_crud(
     sesion: Callable[[], Iterator[Session]],
     filtros: dict[str, type] | None = None,
     busqueda: Iterable[str] = (),
+    referencias: Iterable[Referencia] = (),
     metodos: Iterable[str] = TODAS,
     roles_lectura: tuple[str, ...] = ROLES_LECTURA,
     roles_escritura: tuple[str, ...] = ROLES_ESCRITURA,
@@ -94,6 +98,7 @@ def router_crud(
     leer = requiere_roles(*roles_lectura)
     escribir = requiere_roles(*roles_escritura)
     busqueda = tuple(busqueda)
+    referencias = tuple(referencias)
     filtrar = _dependencia_filtros(filtros or {}, busqueda)
 
     def _buscar(db: Session, id_: int) -> Any:
@@ -141,10 +146,13 @@ def router_crud(
         @router.post("", response_model=salida, status_code=201, summary=f"Crear {nombre.lower()}")
         def crear_(
             datos: crear,  # type: ignore[valid-type]
+            request: Request,
             db: Session = Depends(sesion),
             _: Usuario = Depends(escribir),
         ):
-            obj = modelo(**datos.model_dump())
+            valores = datos.model_dump()
+            verificar_referencias(request, referencias, valores)
+            obj = modelo(**valores)
             db.add(obj)
             return _guardar(db, obj)
 
@@ -160,11 +168,14 @@ def router_crud(
         def actualizar(
             id: int,
             datos: parche,  # type: ignore[valid-type]
+            request: Request,
             db: Session = Depends(sesion),
             _: Usuario = Depends(escribir),
         ):
             obj = _buscar(db, id)
-            for campo, valor in datos.model_dump(exclude_unset=True).items():
+            valores = datos.model_dump(exclude_unset=True)
+            verificar_referencias(request, referencias, valores)
+            for campo, valor in valores.items():
                 setattr(obj, campo, valor)
             return _guardar(db, obj)
 

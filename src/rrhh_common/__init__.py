@@ -4,15 +4,19 @@ from rrhh_common.auth import Usuario, VerificadorToken, requiere_roles, usuario_
 from rrhh_common.config import ConfigAuth
 from rrhh_common.errores import ErrorRespuesta, registrar_manejadores_errores
 from rrhh_common.paginacion import Pagina, Paginacion
+from rrhh_common.referencias import Referencia, ValidadorReferencias, verificar_referencias
 
 __all__ = [
     "ConfigAuth",
     "ErrorRespuesta",
     "Pagina",
     "Paginacion",
+    "Referencia",
     "Usuario",
+    "ValidadorReferencias",
     "VerificadorToken",
     "registrar_manejadores_errores",
     "requiere_roles",
     "usuario_actual",
+    "verificar_referencias",
 ]

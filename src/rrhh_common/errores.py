@@ -14,6 +14,7 @@ _CODIGOS = {
     404: "no_encontrado",
     409: "conflicto",
     422: "datos_invalidos",
+    503: "servicio_no_disponible",
 }
 
 
