@@ -1,12 +1,13 @@
 """Router CRUD genérico para recursos simples sobre SQLAlchemy.
 
 Cubre el patrón de los contratos (GET lista, POST, GET/PATCH/DELETE por id),
-con paginación limit/offset, filtros por igualdad y control de roles.
+con paginación limit/offset, filtros por igualdad, búsqueda de texto (?q=)
+y control de roles.
 
     router = router_crud(
         modelo=Hijo, crear=HijoCrear, parche=HijoParche, salida=HijoSalida,
         prefijo="/hijos", etiqueta="Gestión de Hijos", sesion=obtener_sesion,
-        filtros={"funcionario_id": int},
+        filtros={"funcionario_id": int}, busqueda=("nombre",),
     )
 """
 
@@ -16,7 +17,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -29,23 +30,41 @@ ROLES_ESCRITURA = ("rrhh-operador",)
 TODAS = frozenset({"listar", "crear", "obtener", "actualizar", "eliminar"})
 
 
-def _dependencia_filtros(filtros: dict[str, type]) -> Callable[..., dict[str, Any]]:
-    """Arma una dependencia con un query param opcional por filtro (visible en OpenAPI)."""
+def _dependencia_filtros(
+    filtros: dict[str, type], busqueda: tuple[str, ...]
+) -> Callable[..., dict[str, Any]]:
+    """Arma una dependencia con un query param opcional por filtro (visible en OpenAPI).
+
+    Si hay columnas de búsqueda agrega además ?q=, que llega en la clave "q".
+    """
 
     def _filtros(**valores: Any) -> dict[str, Any]:
         return {k: v for k, v in valores.items() if v is not None}
 
-    _filtros.__signature__ = inspect.Signature(  # type: ignore[attr-defined]
-        [
+    parametros = [
+        inspect.Parameter(
+            nombre,
+            inspect.Parameter.KEYWORD_ONLY,
+            default=Query(None, description=f"Filtrar por {nombre}"),
+            annotation=tipo | None,
+        )
+        for nombre, tipo in filtros.items()
+    ]
+    if busqueda:
+        parametros.append(
             inspect.Parameter(
-                nombre,
+                "q",
                 inspect.Parameter.KEYWORD_ONLY,
-                default=Query(None, description=f"Filtrar por {nombre}"),
-                annotation=tipo | None,
+                default=Query(
+                    None,
+                    min_length=1,
+                    description="Buscar texto (sin distinguir mayúsculas) en: "
+                    + ", ".join(busqueda),
+                ),
+                annotation=str | None,
             )
-            for nombre, tipo in filtros.items()
-        ]
-    )
+        )
+    _filtros.__signature__ = inspect.Signature(parametros)  # type: ignore[attr-defined]
     return _filtros
 
 
@@ -64,6 +83,7 @@ def router_crud(
     etiqueta: str,
     sesion: Callable[[], Iterator[Session]],
     filtros: dict[str, type] | None = None,
+    busqueda: Iterable[str] = (),
     metodos: Iterable[str] = TODAS,
     roles_lectura: tuple[str, ...] = ROLES_LECTURA,
     roles_escritura: tuple[str, ...] = ROLES_ESCRITURA,
@@ -73,7 +93,8 @@ def router_crud(
     metodos = frozenset(metodos)
     leer = requiere_roles(*roles_lectura)
     escribir = requiere_roles(*roles_escritura)
-    filtrar = _dependencia_filtros(filtros or {})
+    busqueda = tuple(busqueda)
+    filtrar = _dependencia_filtros(filtros or {}, busqueda)
 
     def _buscar(db: Session, id_: int) -> Any:
         obj = db.get(modelo, id_)
@@ -106,7 +127,13 @@ def router_crud(
             db: Session = Depends(sesion),
             _: Usuario = Depends(leer),
         ):
+            texto = valores.pop("q", None)
             consulta = select(modelo).filter_by(**valores).order_by(modelo.id)
+            if texto:
+                patron = f"%{texto}%"
+                consulta = consulta.where(
+                    or_(*(getattr(modelo, col).ilike(patron) for col in busqueda))
+                )
             return db.scalars(consulta.offset(p.offset).limit(p.limit)).all()
 
     if "crear" in metodos:

@@ -85,6 +85,7 @@ def cliente(config_auth) -> TestClient:
             prefijo="/sectores",
             etiqueta="Sectores",
             nombre="Sector",
+            busqueda=("nombre",),
             **comunes,
         )
     )
@@ -170,3 +171,17 @@ def test_metodos_no_habilitados_no_existen(cliente):
 def test_filtros_aparecen_en_openapi(cliente):
     params = cliente.get("/openapi.json").json()["paths"]["/cargos"]["get"]["parameters"]
     assert {"limit", "offset", "sector_id"} <= {p["name"] for p in params}
+
+
+def test_busqueda_por_texto(cliente):
+    for nombre in ("Contabilidad", "Recursos Humanos", "Contaduría"):
+        cliente.post("/sectores", json={"nombre": nombre}, headers=OPERADOR)
+    encontrados = cliente.get("/sectores?q=CONTA", headers=CONSULTA).json()
+    assert [s["nombre"] for s in encontrados] == ["Contabilidad", "Contaduría"]
+    assert len(cliente.get("/sectores", headers=CONSULTA).json()) == 3
+
+
+def test_q_solo_existe_si_hay_busqueda(cliente):
+    paths = cliente.get("/openapi.json").json()["paths"]
+    assert "q" in {p["name"] for p in paths["/sectores"]["get"]["parameters"]}
+    assert "q" not in {p["name"] for p in paths["/cargos"]["get"]["parameters"]}

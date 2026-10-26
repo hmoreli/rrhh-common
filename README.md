@@ -7,7 +7,7 @@ Librería compartida por los microservicios de RRHH (FastAPI). Resuelve lo que t
 - **Paginación**: `?limit=&offset=` y la respuesta `Pagina[T]` (`items`, `total`, `limit`, `offset`).
 - **Errores**: un formato único `{codigo, mensaje, detalles}` para 4xx y validaciones.
 - **Llamadas entre servicios**: `ClienteServicio` con token de *client credentials*.
-- **CRUD genérico** (`rrhh_common.crud`, extra `[db]`): `router_crud(...)` arma GET lista, POST y GET/PATCH/DELETE por id sobre un modelo SQLAlchemy, con paginación, filtros por igualdad, 404/409 y roles de lectura y escritura.
+- **CRUD genérico** (`rrhh_common.crud`, extra `[db]`): `router_crud(...)` arma GET lista, POST y GET/PATCH/DELETE por id sobre un modelo SQLAlchemy, con paginación, filtros por igualdad, búsqueda de texto con `?q=` (parámetro `busqueda`), 404/409 y roles de lectura y escritura.
 
 ## Instalar en un microservicio
 
