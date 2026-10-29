@@ -34,7 +34,7 @@ class Referencia:
     campo: nombre del campo en el cuerpo del request (`funcionario_id`).
     servicio: el servicio dueño (`funcionarios` → http://ms-funcionarios:8000).
     ruta: GET que responde 200 si existe y 404 si no (`/funcionarios/{id}`).
-    nombre: para el mensaje de error ("No existe el funcionario 12").
+    nombre: para el mensaje de error ("Funcionario 12 no existe").
     """
 
     campo: str
@@ -143,7 +143,7 @@ class ValidadorReferencias:
                     {
                         "type": "referencia",
                         "loc": ("body", ref.campo),
-                        "msg": f"No existe el {ref.nombre} {id_}",
+                        "msg": f"{ref.nombre[0].upper()}{ref.nombre[1:]} {id_} no existe",
                         "input": id_,
                     }
                 )

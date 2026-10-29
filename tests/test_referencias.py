@@ -66,7 +66,7 @@ def test_verificar_id_inexistente_da_422():
     v = validador(Servicios())
     with pytest.raises(RequestValidationError) as exc:
         v.verificar([FUNCIONARIO], {"funcionario_id": 9})
-    assert exc.value.errors()[0]["msg"] == "No existe el funcionario 9"
+    assert exc.value.errors()[0]["msg"] == "Funcionario 9 no existe"
 
 
 def test_verificar_ignora_campos_vacios():
@@ -163,7 +163,7 @@ def test_crud_valida_al_crear_y_al_modificar(config_auth):
     r = cliente.post("/hijos", json={"funcionario_id": 9}, headers=OPERADOR)
     assert r.status_code == 422
     assert r.json()["detalles"] == [
-        {"campo": "body.funcionario_id", "mensaje": "No existe el funcionario 9"}
+        {"campo": "body.funcionario_id", "mensaje": "Funcionario 9 no existe"}
     ]
     r = cliente.patch("/hijos/1", json={"funcionario_id": 9}, headers=OPERADOR)
     assert r.status_code == 422
