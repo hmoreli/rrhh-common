@@ -80,6 +80,17 @@ def crear(datos: PermisoCrear, request: Request):
     verificar_referencias(request, [FUNCIONARIO], datos.model_dump())
 ```
 
+Leer datos de otro servicio con el mismo client (por ejemplo, ms-nomina pide los totales de asistencia):
+
+```python
+from rrhh_common import validador_de
+
+servicios = validador_de(request)  # None si no hay client configurado
+resumen = servicios.consultar("asistencia", "/jornadas/resumen", {"desde": "2026-11-01"})
+# consultar_todo recorre todas las páginas
+hijos = servicios.consultar_todo("funcionarios", "/hijos", {"funcionario_id": 12})
+```
+
 Variables de entorno:
 
 | Variable | Ejemplo | Obligatoria |

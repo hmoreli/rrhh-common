@@ -181,3 +181,34 @@ def test_servicio_interno_puede_leer(config_auth):
     assert r.status_code == 200
     r = cliente.post("/hijos", json={"funcionario_id": 1}, headers=encabezado("servicio-interno"))
     assert r.status_code == 403
+
+
+# ------------------------------------------------- consultas a otros servicios
+
+
+def _listado(request: httpx.Request) -> httpx.Response:
+    if request.url.path.endswith("/token"):
+        return httpx.Response(200, json={"access_token": "tk", "expires_in": 300})
+    assert request.headers["Authorization"] == "Bearer tk"
+    if request.url.path == "/hijos":
+        offset = int(request.url.params["offset"])
+        limit = int(request.url.params["limit"])
+        datos = [{"id": i} for i in range(5)][offset : offset + limit]
+        return httpx.Response(200, json=datos)
+    return httpx.Response(404, json={})
+
+
+def test_consultar_y_consultar_todo():
+    v = ValidadorReferencias(
+        token_url="http://keycloak/token",
+        client_id="ms-prueba",
+        client_secret="secreto",
+        http=httpx.Client(transport=httpx.MockTransport(_listado)),
+    )
+    assert v.consultar("funcionarios", "/hijos", {"offset": 0, "limit": 2}) == [
+        {"id": 0},
+        {"id": 1},
+    ]
+    assert len(v.consultar_todo("funcionarios", "/hijos", lote=2)) == 5
+    with pytest.raises(httpx.HTTPStatusError):
+        v.consultar("funcionarios", "/otra")

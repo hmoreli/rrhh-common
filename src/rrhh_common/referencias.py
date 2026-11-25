@@ -122,6 +122,34 @@ class ValidadorReferencias:
         self._existentes[url] = ahora + self._recordar
         return True
 
+    def consultar(self, servicio: str, ruta: str, params: Mapping[str, Any] | None = None) -> Any:
+        """GET a otro servicio con el token del servicio; devuelve el JSON.
+
+        `servicio` es el nombre corto (`funcionarios`). Si no responde o contesta un
+        error, lanza httpx.HTTPError (un 404 es httpx.HTTPStatusError).
+        """
+        url = self._url_servicio(servicio) + ruta
+        resp = self._http.get(
+            url,
+            params=dict(params or {}),
+            headers={"Authorization": f"Bearer {self._obtener_token()}"},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def consultar_todo(
+        self, servicio: str, ruta: str, params: Mapping[str, Any] | None = None, lote: int = 200
+    ) -> list[Any]:
+        """Como `consultar`, pero recorre todas las páginas de un listado (limit/offset)."""
+        resultado: list[Any] = []
+        while True:
+            pagina = self.consultar(
+                servicio, ruta, {**(params or {}), "limit": lote, "offset": len(resultado)}
+            )
+            resultado.extend(pagina)
+            if len(pagina) < lote:
+                return resultado
+
     def verificar(self, referencias: Iterable[Referencia], datos: Mapping[str, Any]) -> None:
         """422 si algún id no existe; 503 si el servicio dueño no responde."""
         errores = []
@@ -151,10 +179,15 @@ class ValidadorReferencias:
             raise RequestValidationError(errores)
 
 
+def validador_de(request: Request) -> "ValidadorReferencias | None":
+    """El cliente hacia los otros servicios de la app, o None si no está configurado."""
+    return getattr(request.app.state, "referencias", None)
+
+
 def verificar_referencias(
     request: Request, referencias: Iterable[Referencia], datos: Mapping[str, Any]
 ) -> None:
     """Valida con el validador de la app (`app.state.referencias`), si hay uno."""
-    validador: ValidadorReferencias | None = getattr(request.app.state, "referencias", None)
+    validador = validador_de(request)
     if validador is not None:
         validador.verificar(referencias, datos)
